@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import psycopg2
+import numpy as np
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -22,6 +23,31 @@ connection_config = {
 connection = psycopg2.connect(**connection_config)
 musicMaster = pd.read_sql(sql='SELECT * FROM "TbmMusic"', con=connection)
 setlists = pd.read_sql(sql='SELECT * FROM "TbtSetlist"', con=connection)
+
+# 曲順データ生成
+def gen_musicToMusic_data(setlists):
+  # 曲カラム名
+  cell_col_names_withSE = ['cell_0'] + cell_col_names
+  # カウント保持用のSeriesを作成
+  musicToMusicCountSeries = pd.Series([], index=pd.MultiIndex.from_tuples([], names=['from', 'to']), name='count_sum')
+
+  # 最初はSEで固定
+  setlists = setlists.copy()
+  setlists['cell_0'] = '_SE_'
+
+  # 曲から曲へのカウントを集計
+  for i in range(1, len(cell_col_names_withSE)):
+    musicToMusicCountSeries_Work = setlists.value_counts([
+      cell_col_names_withSE[i-1],
+      cell_col_names_withSE[i]
+    ])
+    musicToMusicCountSeries_Work.index.names = ['from', 'to']
+
+    musicToMusicCountSeries = pd.concat([musicToMusicCountSeries, musicToMusicCountSeries_Work], axis=1)
+    musicToMusicCountSeries['count_sum'] = musicToMusicCountSeries.sum(axis=1)
+    musicToMusicCountSeries = musicToMusicCountSeries.drop('count', axis=1)
+
+  return musicToMusicCountSeries
 
 # データ整形
 musicMap = musicMaster \
@@ -47,29 +73,12 @@ def view_music_counts(setlists):
 
 # 曲順グラフ
 def view_music_order_graph(setlists):
-  # 曲カラム名
-  cell_col_names_withSE = ['cell_0'] + cell_col_names
-  # カウント保持用のSeriesを作成
-  musicToMusicCountSeries = pd.Series([], index=pd.MultiIndex.from_tuples([], names=['from', 'to']), name='count_sum')
-
-  # 最初はSEで固定
-  setlists = setlists.copy()
-  setlists['cell_0'] = '_SE_'
-
-  # 曲から曲へのカウントを集計
-  for i in range(1, len(cell_col_names_withSE)):
-    musicToMusicCountSeries_Work = setlists.value_counts([
-      cell_col_names_withSE[i-1],
-      cell_col_names_withSE[i]
-    ])
-    musicToMusicCountSeries_Work.index.names = ['from', 'to']
-
-    musicToMusicCountSeries = pd.concat([musicToMusicCountSeries, musicToMusicCountSeries_Work], axis=1)
-    musicToMusicCountSeries['count_sum'] = musicToMusicCountSeries.sum(axis=1)
-    musicToMusicCountSeries = musicToMusicCountSeries.drop('count', axis=1)
+  musicToMusicCountSeries = gen_musicToMusic_data(setlists)
+  musicToMusicCountArr = musicToMusicCountSeries \
+    .reset_index().values.tolist()
 
   G = nx.MultiDiGraph()
-  for cnt in musicToMusicCountSeries.reset_index().values.tolist():
+  for cnt in musicToMusicCountArr:
     if (cnt[2] < 5):
       continue
 
@@ -122,5 +131,36 @@ def view_music_order_graph(setlists):
   plt.axis('off')
   plt.show()
 
+# 曲順ヒートマップ
+def view_music_order_heatmap(setlists):
+  from_musicMap = musicMap.copy()
+  from_musicMap = from_musicMap.add_prefix('from_')
+  to_musicMap = musicMap.copy()
+  to_musicMap = to_musicMap.add_prefix('to_')
+
+  musicToMusicCountSeries = gen_musicToMusic_data(setlists)
+  musicToMusicCountSeries = musicToMusicCountSeries.reset_index()
+  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, from_musicMap, how='inner', left_on='from', right_on='id')
+  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, to_musicMap, how='inner', left_on='to', right_on='id')
+
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries.pivot(index='from_short_name', columns='to_short_name', values='count_sum')
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.reindex(index=musicMap['short_name'], columns=musicMap['short_name'])
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.fillna(0)
+  
+  print(musicToMusicCountSeries_pivot)
+
+  fig, ax = plt.subplots()
+  heatmap = ax.pcolor(musicToMusicCountSeries_pivot, cmap=plt.cm.Reds)
+  ax.invert_yaxis()
+  ax.xaxis.tick_top()
+  plt.xticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.columns))+0.5, labels=musicToMusicCountSeries_pivot.columns, rotation=90)
+  plt.yticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.index))+0.5, labels=musicToMusicCountSeries_pivot.index)
+  plt.xlabel('To')
+  plt.ylabel('From')
+  plt.colorbar(heatmap)
+  plt.tight_layout()
+  plt.show()
+
 #view_music_counts(setlists)
 #view_music_order_graph(setlists)
+#view_music_order_heatmap(setlists)
