@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import psycopg2
 import pandas as pd
 import networkx as nx
-from pyvis.network import Network
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
