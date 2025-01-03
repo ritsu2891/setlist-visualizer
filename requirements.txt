@@ -1,0 +1,6 @@
+python-dotenv==1.0.1
+psycopg2-binary==2.9.10
+pandas==2.2.3
+matplotlib==3.10.0
+matplotlib-fontja==1.0.0
+streamlit==1.41.1
