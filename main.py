@@ -108,7 +108,7 @@ def view_music_order_graph(setlists):
   cmap = cm.get_cmap('Reds')
 
   # ポジションを計算
-  pos = nx.nx_pydot.graphviz_layout(G)
+  pos = nx.spring_layout(G)
 
   # ノードを描画
   nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=400)
