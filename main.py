@@ -218,6 +218,6 @@ view_music_order_graph(setlists, False)
 'このページに関するお問い合わせは [rpakaのXアカウント](https://x.com/ritsu2891) にDMでお願いします。'
 
 '---'
-'v1.0.0 (2025-01-04)　[GitHub](https://github.com/ritsu2891/setlist-visualizer)'
+'v1.0.1 (2025-01-04)　[GitHub](https://github.com/ritsu2891/setlist-visualizer)'
 #expand = st.expander("My label", icon=":material/info:", expanded=True)
 #expand.write("Inside the expander.")
