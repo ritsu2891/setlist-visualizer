@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import matplotlib_fontja
+import streamlit as st
 
 load_dotenv()
 
@@ -65,14 +66,22 @@ def view_music_counts(setlists):
   music_id_counts_withM = pd.concat([musicMap, music_id_counts], axis=1)
   music_id_counts_withM = music_id_counts_withM.drop('_MC_')
 
+  music_id_counts_display = music_id_counts_withM[['name', 'count']].sort_values(by='count', ascending=False)
+
+  music_id_counts_display['percent'] = music_id_counts_display['count'] / setlists['artist_id'].count() * 100
+  music_id_counts_display
+
   fig, ax = plt.subplots()
   ax.bar(music_id_counts_withM['name'], music_id_counts_withM['count'])
   plt.xticks(rotation=90)
   plt.tight_layout()
-  plt.show()
+  st.pyplot(plt)
 
 # 曲順グラフ
 def view_music_order_graph(setlists):
+  fig, ax = plt.subplots()
+  plt.figure(figsize=(12, 8))
+
   musicToMusicCountSeries = gen_musicToMusic_data(setlists)
   musicToMusicCountArr = musicToMusicCountSeries \
     .reset_index().values.tolist()
@@ -112,6 +121,8 @@ def view_music_order_graph(setlists):
       connectionstyle=f'arc3, rad = 0.25'
     )
 
+  
+
   # ラベルを描画
   nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_family='Osaka')
   nx.draw_networkx_edge_labels(
@@ -129,7 +140,8 @@ def view_music_order_graph(setlists):
   # グラフを表示
   plt.title("曲順回数グラフ")
   plt.axis('off')
-  plt.show()
+  
+  st.pyplot(plt)
 
 # 曲順ヒートマップ
 def view_music_order_heatmap(setlists):
@@ -147,7 +159,8 @@ def view_music_order_heatmap(setlists):
   musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.reindex(index=musicMap['short_name'], columns=musicMap['short_name'])
   musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.fillna(0)
   
-  print(musicToMusicCountSeries_pivot)
+  '縦：from　横：to'
+  musicToMusicCountSeries_pivot
 
   fig, ax = plt.subplots()
   heatmap = ax.pcolor(musicToMusicCountSeries_pivot, cmap=plt.cm.Reds)
@@ -159,8 +172,22 @@ def view_music_order_heatmap(setlists):
   plt.ylabel('From')
   plt.colorbar(heatmap)
   plt.tight_layout()
-  plt.show()
+  st.pyplot(plt)
 
-#view_music_counts(setlists)
-#view_music_order_graph(setlists)
-#view_music_order_heatmap(setlists)
+'# アスうさセトリ'
+'このページは **[アストリーのうさぎ](https://x.com/Asutory_Usagi)** のセトリから、曲の採用頻度や曲順などを可視化した結果を表示します。セトリ情報はメンバーの **[桐いろは](https://x.com/AsuUsa_kiri)** さんのXポストを収集・パースして作成したデータを使用しています。（収集期間：' + setlists['date'].min().strftime('%Y/%m/%d') + '〜' + setlists['date'].max().strftime('%Y/%m/%d') + '）'
+
+'## 曲採用頻度'
+view_music_counts(setlists)
+
+'## 曲順'
+view_music_order_heatmap(setlists)
+view_music_order_graph(setlists)
+
+'## 再配布'
+'このページに掲載しているデータ・画像等は、 **このページからの引用であることを明記の上で**再配布可能とします。'
+
+'## お問い合わせ'
+'このページに関するお問い合わせは [rpakaのXアカウント](https://x.com/ritsu2891) にDMでお願いします。'
+#expand = st.expander("My label", icon=":material/info:", expanded=True)
+#expand.write("Inside the expander.")
