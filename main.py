@@ -108,7 +108,7 @@ def view_music_order_graph(setlists):
   cmap = cm.get_cmap('Reds')
 
   # ポジションを計算
-  pos = nx.spring_layout(G)
+  pos = nx.circular_layout(G)
 
   # ノードを描画
   nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=400)
@@ -120,8 +120,6 @@ def view_music_order_graph(setlists):
       G, pos, edgelist=[edge], edge_color=[color], width=2,
       connectionstyle=f'arc3, rad = 0.25'
     )
-
-  
 
   # ラベルを描画
   nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_family='IPAexGothic')
@@ -142,6 +140,7 @@ def view_music_order_graph(setlists):
   plt.axis('off')
   
   st.pyplot(plt)
+  '※グラフは5回以上のみ表示しています'
 
 # 曲順ヒートマップ
 def view_music_order_heatmap(setlists):
@@ -189,5 +188,8 @@ view_music_order_graph(setlists)
 
 '## お問い合わせ'
 'このページに関するお問い合わせは [rpakaのXアカウント](https://x.com/ritsu2891) にDMでお願いします。'
+
+'---'
+'v1.0.0 (2025-01-04)　[GitHub](https://github.com/ritsu2891/setlist-visualizer)'
 #expand = st.expander("My label", icon=":material/info:", expanded=True)
 #expand.write("Inside the expander.")
