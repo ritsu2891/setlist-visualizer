@@ -69,16 +69,63 @@ def view_music_counts(setlists):
   music_id_counts_display = music_id_counts_withM[['name', 'count']].sort_values(by='count', ascending=False)
 
   music_id_counts_display['percent'] = music_id_counts_display['count'] / setlists['artist_id'].count() * 100
+  music_id_counts_display.set_index('name', inplace=True)
+  music_id_counts_display.index.names = ['曲名']
+  music_id_counts_display.columns = ['回数', '割合(%)']
   music_id_counts_display
 
   fig, ax = plt.subplots()
-  ax.bar(music_id_counts_withM['name'], music_id_counts_withM['count'])
+  p = ax.bar(music_id_counts_withM['name'], music_id_counts_withM['count'])
+  #ax.bar_label(p, label_type='edge')
+
+  values = music_id_counts_withM['count']
+  percentages = music_id_counts_withM['count'] / setlists['artist_id'].count() * 100
+  for i, (value, percentage) in enumerate(zip(values, percentages)):
+    plt.text(i, value + 1, f"{value:.0f}\n({percentage:.1f}%)", ha='center', fontsize=8)
+
+  plt.ylim(0, music_id_counts_withM['count'].max() * 1.2)
   plt.xticks(rotation=90)
+  plt.xlabel('曲名')
+  plt.ylabel('回数')
+  plt.title('曲採用頻度')
+  plt.tight_layout()
+  st.pyplot(plt)
+
+# 曲順ヒートマップ
+def view_music_order_heatmap(setlists):
+  from_musicMap = musicMap.copy()
+  from_musicMap = from_musicMap.add_prefix('from_')
+  to_musicMap = musicMap.copy()
+  to_musicMap = to_musicMap.add_prefix('to_')
+
+  musicToMusicCountSeries = gen_musicToMusic_data(setlists)
+  musicToMusicCountSeries = musicToMusicCountSeries.reset_index()
+  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, from_musicMap, how='inner', left_on='from', right_on='id')
+  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, to_musicMap, how='inner', left_on='to', right_on='id')
+
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries.pivot(index='from_short_name', columns='to_short_name', values='count_sum')
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.reindex(index=musicMap['short_name'], columns=musicMap['short_name'])
+  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.fillna(0)
+  musicToMusicCountSeries_pivot.index.name = '曲名'
+  
+  '縦：from　横：to'
+  musicToMusicCountSeries_pivot
+
+  fig, ax = plt.subplots()
+  heatmap = ax.pcolor(musicToMusicCountSeries_pivot, cmap=plt.cm.Reds)
+  ax.invert_yaxis()
+  ax.xaxis.tick_top()
+  plt.xticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.columns))+0.5, labels=musicToMusicCountSeries_pivot.columns, rotation=90)
+  plt.yticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.index))+0.5, labels=musicToMusicCountSeries_pivot.index)
+  plt.xlabel('To')
+  plt.ylabel('From')
+  plt.title('曲順ヒートマップ')
+  plt.colorbar(heatmap)
   plt.tight_layout()
   st.pyplot(plt)
 
 # 曲順グラフ
-def view_music_order_graph(setlists):
+def view_music_order_graph(setlists, withSEMC):
   fig, ax = plt.subplots()
   plt.figure(figsize=(12, 8))
 
@@ -88,11 +135,13 @@ def view_music_order_graph(setlists):
 
   G = nx.MultiDiGraph()
   for cnt in musicToMusicCountArr:
-    if (cnt[2] < 5):
+    if (withSEMC and cnt[2] < 5):
+      continue
+    if (not withSEMC and cnt[2] < 3):
       continue
 
-    #if (cnt[0] == '_MC_' or cnt[1] == '_MC_') or (cnt[0] == '_SE_' or cnt[1] == '_SE_'):
-      #continue
+    if not withSEMC and ((cnt[0] == '_MC_' or cnt[1] == '_MC_') or (cnt[0] == '_SE_' or cnt[1] == '_SE_')):
+      continue
 
     G.add_edge(
       musicMap.loc[cnt[0]]['short_name'],
@@ -123,9 +172,12 @@ def view_music_order_graph(setlists):
 
   # ラベルを描画
   nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_family='IPAexGothic')
+
+  edge_labels = {edge: int(attr) for edge, attr in nx.get_edge_attributes(G, 'weight').items()}
+  
   nx.draw_networkx_edge_labels(
     G, pos,
-    edge_labels=nx.get_edge_attributes(G, 'weight'),
+    edge_labels=edge_labels,
     font_color='gray',
     connectionstyle=f'arc3, rad = 0.25'
   )
@@ -136,42 +188,17 @@ def view_music_order_graph(setlists):
   plt.colorbar(sm, label='曲順回数', ax=plt.gca())
 
   # グラフを表示
-  plt.title("曲順回数グラフ")
+  if withSEMC:
+    plt.title("曲順回数グラフ（SE/MCあり）")
+  else:
+    plt.title("曲順回数グラフ（SE/MCなし）")
   plt.axis('off')
   
   st.pyplot(plt)
-  '※グラフは5回以上のみ表示しています'
-
-# 曲順ヒートマップ
-def view_music_order_heatmap(setlists):
-  from_musicMap = musicMap.copy()
-  from_musicMap = from_musicMap.add_prefix('from_')
-  to_musicMap = musicMap.copy()
-  to_musicMap = to_musicMap.add_prefix('to_')
-
-  musicToMusicCountSeries = gen_musicToMusic_data(setlists)
-  musicToMusicCountSeries = musicToMusicCountSeries.reset_index()
-  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, from_musicMap, how='inner', left_on='from', right_on='id')
-  musicToMusicCountSeries = pd.merge(musicToMusicCountSeries, to_musicMap, how='inner', left_on='to', right_on='id')
-
-  musicToMusicCountSeries_pivot = musicToMusicCountSeries.pivot(index='from_short_name', columns='to_short_name', values='count_sum')
-  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.reindex(index=musicMap['short_name'], columns=musicMap['short_name'])
-  musicToMusicCountSeries_pivot = musicToMusicCountSeries_pivot.fillna(0)
-  
-  '縦：from　横：to'
-  musicToMusicCountSeries_pivot
-
-  fig, ax = plt.subplots()
-  heatmap = ax.pcolor(musicToMusicCountSeries_pivot, cmap=plt.cm.Reds)
-  ax.invert_yaxis()
-  ax.xaxis.tick_top()
-  plt.xticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.columns))+0.5, labels=musicToMusicCountSeries_pivot.columns, rotation=90)
-  plt.yticks(ticks=np.arange(len(musicToMusicCountSeries_pivot.index))+0.5, labels=musicToMusicCountSeries_pivot.index)
-  plt.xlabel('To')
-  plt.ylabel('From')
-  plt.colorbar(heatmap)
-  plt.tight_layout()
-  st.pyplot(plt)
+  if withSEMC:
+    '※5回以上のみ表示しています'
+  else:
+    '※3回以上のみ表示しています'
 
 '# アスうさセトリ'
 'このページは **[アストリーのうさぎ](https://x.com/Asutory_Usagi)** のセトリから、曲の採用頻度や曲順などを可視化した結果を表示します。セトリ情報はメンバーの **[桐いろは](https://x.com/AsuUsa_kiri)** さんのXポストを収集・パースして作成したデータを使用しています。（収集期間：' + setlists['date'].min().strftime('%Y/%m/%d') + '〜' + setlists['date'].max().strftime('%Y/%m/%d') + '）'
@@ -181,7 +208,8 @@ view_music_counts(setlists)
 
 '## 曲順'
 view_music_order_heatmap(setlists)
-view_music_order_graph(setlists)
+view_music_order_graph(setlists, True)
+view_music_order_graph(setlists, False)
 
 '## 再配布'
 'このページに掲載しているデータ・画像等は、 **このページからの引用であることを明記の上で**再配布可能とします。'
