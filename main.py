@@ -124,7 +124,7 @@ def view_music_order_graph(setlists):
   
 
   # ラベルを描画
-  nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_family='Osaka')
+  nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_family='IPAexGothic')
   nx.draw_networkx_edge_labels(
     G, pos,
     edge_labels=nx.get_edge_attributes(G, 'weight'),
