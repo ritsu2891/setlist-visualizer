@@ -24,6 +24,7 @@ connection_config = {
 connection = psycopg2.connect(**connection_config)
 musicMaster = pd.read_sql(sql='SELECT * FROM "TbmMusic"', con=connection)
 setlists = pd.read_sql(sql='SELECT * FROM "TbtSetlist"', con=connection)
+setlists['date_cv'] = pd.to_datetime(setlists['date'], format='%Y/%m/%d')
 
 # 曲順データ生成
 def gen_musicToMusic_data(setlists):
@@ -56,9 +57,13 @@ musicMap = musicMaster \
   .set_index('id')
 cell_col_names = ['cell_{}'.format(i) for i in range(1, 21)]
 
-# 曲登場回数
-def view_music_counts(setlists):
-  music_id_counts = setlists \
+# 曲登場回数（表）
+def view_music_counts_table(setlists, yearMonth=None):
+  setlists_t = setlists.copy()
+  if yearMonth is not None:
+    setlists_t = setlists[setlists['date_cv'].dt.strftime('%Y/%m') == yearMonth]
+
+  music_id_counts = setlists_t \
     .melt(value_vars=cell_col_names, value_name='music_id')['music_id'] \
     .dropna() \
     .value_counts()
@@ -74,6 +79,20 @@ def view_music_counts(setlists):
   music_id_counts_display.columns = ['回数', '割合(%)']
   music_id_counts_display
 
+# 曲登場回数（グラフ）
+def view_music_counts_graph(setlists, yearMonth=None):
+  setlists_t = setlists.copy()
+  if yearMonth is not None:
+    setlists_t = setlists[setlists['date_cv'].dt.strftime('%Y/%m') == yearMonth]
+
+  music_id_counts = setlists_t \
+    .melt(value_vars=cell_col_names, value_name='music_id')['music_id'] \
+    .dropna() \
+    .value_counts()
+  
+  music_id_counts_withM = pd.concat([musicMap, music_id_counts], axis=1)
+  music_id_counts_withM = music_id_counts_withM.drop('_MC_')
+
   fig, ax = plt.subplots()
   p = ax.bar(music_id_counts_withM['name'], music_id_counts_withM['count'])
   #ax.bar_label(p, label_type='edge')
@@ -87,7 +106,10 @@ def view_music_counts(setlists):
   plt.xticks(rotation=90)
   plt.xlabel('曲名')
   plt.ylabel('回数')
-  plt.title('曲採用頻度')
+  if yearMonth is not None:
+    plt.title(yearMonth + ' 曲採用頻度')
+  else:
+    plt.title('曲採用頻度')
   plt.tight_layout()
   st.pyplot(plt)
 
@@ -204,7 +226,19 @@ def view_music_order_graph(setlists, withSEMC):
 'このページは **[アストリーのうさぎ](https://x.com/Asutory_Usagi)** のセトリから、曲の採用頻度や曲順などを可視化した結果を表示します。セトリ情報はメンバーの **[桐いろは](https://x.com/AsuUsa_kiri)** さんのXポストを収集・パースして作成したデータを使用しています。（収集期間：' + setlists['date'].min().strftime('%Y/%m/%d') + '〜' + setlists['date'].max().strftime('%Y/%m/%d') + '）'
 
 '## 曲採用頻度'
-view_music_counts(setlists)
+'全て'
+view_music_counts_table(setlists)
+'2024/12'
+view_music_counts_table(setlists, '2024/12')
+'2024/11'
+view_music_counts_table(setlists, '2024/11')
+'2024/10'
+view_music_counts_table(setlists, '2024/10')
+
+view_music_counts_graph(setlists)
+view_music_counts_graph(setlists, '2024/12')
+view_music_counts_graph(setlists, '2024/11')
+view_music_counts_graph(setlists, '2024/10')
 
 '## 曲順'
 view_music_order_heatmap(setlists)
